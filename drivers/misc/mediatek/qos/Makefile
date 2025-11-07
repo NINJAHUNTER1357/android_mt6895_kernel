@@ -23,15 +23,18 @@ endif
 
 
 ifeq ($(CONFIG_MTK_QOS_MT6768),y)
-obj-$(CONFIG_MTK_QOS_FRAMEWORK) += mtk_qos_legacy.o
-mtk_qos_legacy-objs := mtk_qos_common.o mtk_qos_bound.o mtk_qos_sysfs.o qos-v6768.o mtk_qos_ipi_v1.o
+    obj-$(CONFIG_MTK_QOS_FRAMEWORK) += mtk_qos_legacy.o
+    mtk_qos_legacy-objs := mtk_qos_common.o mtk_qos_bound.o mtk_qos_sysfs.o qos-v6768.o mtk_qos_ipi_v1.o
 else
-obj-$(CONFIG_MTK_QOS_FRAMEWORK) += mtk_qos.o
-ifeq ($(CONFIG_MTK_QOS_MT6893),y)
-mtk_qos-objs := mtk_qos_common.o  mtk_qos_bound.o  mtk_qos_sysfs.o mtk_qos_share.o qos-v6893.o mtk_qos_scmi.o
-else ifeq($(CONFIG_MTK_QOS_MT6833),y)
-mtk_qos-objs := mtk_qos_common.o  mtk_qos_bound.o  mtk_qos_sysfs.o mtk_qos_share.o qos-v6833.o mtk_qos_ipi_v2.o
-else
-mtk_qos-objs := mtk_qos_common.o  mtk_qos_bound.o  mtk_qos_sysfs.o mtk_qos_share.o qos-v6873.o mtk_qos_ipi_v2.o
-endif
+    obj-$(CONFIG_MTK_QOS_FRAMEWORK) += mtk_qos.o
+
+    ifeq ($(CONFIG_MTK_QOS_MT6893),y)
+        mtk_qos-objs := mtk_qos_common.o mtk_qos_bound.o mtk_qos_sysfs.o mtk_qos_share.o qos-v6893.o mtk_qos_scmi.o
+    else
+        ifeq ($(CONFIG_MTK_QOS_MT6833),y)
+            mtk_qos-objs := mtk_qos_common.o mtk_qos_bound.o mtk_qos_sysfs.o mtk_qos_share.o qos-v6833.o mtk_qos_ipi_v2.o
+        else
+            mtk_qos-objs := mtk_qos_common.o mtk_qos_bound.o mtk_qos_sysfs.o mtk_qos_share.o qos-v6873.o mtk_qos_ipi_v2.o
+        endif
+    endif
 endif
