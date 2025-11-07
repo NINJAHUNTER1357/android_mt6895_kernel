@@ -1,0 +1,40 @@
+# Kernel build config for MT6895 (Image.gz only)
+
+KERNEL_DIR=kernel-5.10
+
+# Include base configs
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
+
+# Set defconfig
+DEFCONFIG=oplus6895_defconfig
+
+# Merge configs before build
+PRE_DEFCONFIG_CMDS="KCONFIG_CONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG} \
+${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r \
+${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig \
+${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/mgk_64_k510_defconfig \
+${ROOT_DIR}/${KERNEL_DIR}/kernel/configs/oplus6895.config"
+
+# Clean up generated defconfig file
+POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
+
+# What to build (only Image.gz)
+MAKE_GOALS="Image.gz"
+
+# Which files to keep / copy
+FILES="
+arch/arm64/boot/Image.gz
+vmlinux
+System.map
+"
+
+# Optional: copy output to out/dist after build
+POST_KERNEL_BUILD_CMDS="
+mkdir -p ${ROOT_DIR}/out/dist;
+cp ${OUT_DIR}/arch/arm64/boot/Image.gz ${ROOT_DIR}/out/dist/;
+echo '✅ Kernel build complete — Image.gz copied to out/dist/';
+"
+
+# Optional: skip full cleanup to speed up rebuilds
+# SKIP_MRPROPER=1
