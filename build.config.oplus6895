@@ -32,7 +32,7 @@ System.map
 # Optional: copy output to out/dist after build
 POST_KERNEL_BUILD_CMDS="
 mkdir -p ${ROOT_DIR}/out/dist;
-cp ${OUT_DIR}/arch/arm64/boot/Image.gz ${ROOT_DIR}/out/dist/;
+cp ${OUT_DIR}/arch/arm64/boot/Image.gz ${ROOT_DIR}/out/dist/ || cp arch/arm64/boot/Image.gz ${ROOT_DIR}/out/dist/;
 echo '✅ Kernel build complete — Image.gz copied to out/dist/';
 "
 
