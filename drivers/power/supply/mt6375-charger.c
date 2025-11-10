@@ -332,6 +332,7 @@ struct mt6375_chg_data {
 #ifdef OPLUS_FEATURE_CHG_BASIC
 /* oplus add for pd become usb port */
 	int bc12_retry;
+	struct regulator* otg_regu;
 #endif
 	int vbat0_flag;
 };
@@ -2168,8 +2169,17 @@ static int mt6375_set_otg_cc(struct charger_device *chgdev, u32 uA)
 static int mt6375_enable_otg(struct charger_device *chgdev, bool en)
 {
 	int ret;
-	struct regulator *regulator;
 	struct mt6375_chg_data *ddata = charger_get_data(chgdev);
+
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	mt_dbg(ddata->dev, "en=%d\n", en);
+	if (IS_ERR(ddata->otg_regu)) {
+		dev_err(ddata->dev, "failed to get otg regulator\n");
+		return PTR_ERR(ddata->otg_regu);
+	}
+	ret = en ? regulator_enable(ddata->otg_regu) : regulator_disable(ddata->otg_regu);
+#else
+	struct regulator *regulator;
 
 	mt_dbg(ddata->dev, "en=%d\n", en);
 	regulator = devm_regulator_get(ddata->dev, "usb-otg-vbus");
@@ -2177,16 +2187,9 @@ static int mt6375_enable_otg(struct charger_device *chgdev, bool en)
 		dev_err(ddata->dev, "failed to get otg regulator\n");
 		return PTR_ERR(regulator);
 	}
-#if defined(OPLUS_FEATURE_CHG_BASIC) && defined(CONFIG_OPLUS_CHARGER_MTK6789S)
-/* BSP.CHG.Basic,2023/07/26, only for mt6789 with ccdetect project*/
-	if ((regulator_is_enabled(regulator) && en) ||
-		(!regulator_is_enabled(regulator) && !en)) {
-		devm_regulator_put(regulator);
-		return 0;
-	}
-#endif
 	ret = en ? regulator_enable(regulator) : regulator_disable(regulator);
 	devm_regulator_put(regulator);
+#endif
 	return ret;
 }
 
@@ -3527,6 +3530,14 @@ static int mt6375_chg_probe(struct platform_device *pdev)
 		goto out_attr;
 	}
 
+#ifdef OPLUS_FEATURE_CHG_BASIC
+/* get OTG regulator */
+	ddata->otg_regu = devm_regulator_get(ddata->dev, "usb-otg-vbus");
+	if (IS_ERR(ddata->otg_regu)) {
+		dev_err(ddata->dev, "failed to get otg regulator\n");
+	}
+#endif
+
 	ret = mt6375_chg_init_chgdev(ddata);
 	if (ret < 0) {
 		dev_err(dev, "failed to init chgdev\n");
@@ -3561,6 +3572,11 @@ static int mt6375_chg_remove(struct platform_device *pdev)
 
 	mt_dbg(&pdev->dev, "%s\n", __func__);
 	if (ddata) {
+#ifdef OPLUS_FEATURE_CHG_BASIC
+		if (!IS_ERR(ddata->otg_regu)) {
+			devm_regulator_put(ddata->otg_regu);
+		}
+#endif
 		charger_device_unregister(ddata->chgdev);
 		device_remove_file(ddata->dev, &dev_attr_shipping_mode);
 		destroy_workqueue(ddata->wq);
