@@ -90,7 +90,7 @@ typedef struct
 typedef void (*func2_pt)(uint32_t *, const uint32_t *);
 typedef void (*func3_pt)(uint32_t *, const uint32_t *, const uint32_t *);
 
-/* brief definition of sha256 context */
+/* brief definition of optiga_sha256 context */
 typedef struct
 {
 	uint32_t H[8];      /*!< 8 working variables/final hash value */
@@ -171,7 +171,7 @@ void sha256_compress(sha256_context_t *context);
 //void sha256_final(uint8_t *hash_value, sha256_context_t *context);
 //void sha256_update(const uint8_t *input_data, const uint32_t input_length, sha256_context_t *context);
 void sha256_init(sha256_context_t *context);
-void sha256(uint8_t *hash_value, const uint8_t *input_data, const uint32_t input_length);
+void optiga_sha256(uint8_t *hash_value, const uint8_t *input_data, const uint32_t input_length);
 
 
 #endif				/* _BIF_AUTHENTICATION_H_ */

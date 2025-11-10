@@ -30,7 +30,7 @@
 #include "ucl_defs.h"
 #include "ucl_retdefs.h"
 #include "ucl_types.h"
-#include "sha256.h"
+#include "optiga_sha256.h"
 
 static u32 _wsb_b2w(u8 *src)
 {

@@ -1367,8 +1367,8 @@ BOOL ECDSA_verify(const signature_t *sig, const uint8_t *hash_data, const eccpoi
 
 /********************************************************************
  * Function Name: sha256_compress
- * Description:   Perform sha256 compression function
- *                [in,out] context pointer to sha256 context
+ * Description:   Perform optiga_sha256 compression function
+ *                [in,out] context pointer to optiga_sha256 context
  ********************************************************************/
 void sha256_compress(sha256_context_t *context) 
 {
@@ -1422,9 +1422,9 @@ void sha256_compress(sha256_context_t *context)
 
 /********************************************************************
  * Function Name: sha256_final
- * Description:   finalize sha256 hashing
+ * Description:   finalize optiga_sha256 hashing
  *                [out] hash_value pointer to buffer
- *                [in,out] context pointer to sha256 context
+ *                [in,out] context pointer to optiga_sha256 context
  *
  ********************************************************************/
 static void sha256_final(uint8_t *hash_value, sha256_context_t *context)
@@ -1462,10 +1462,10 @@ static void sha256_final(uint8_t *hash_value, sha256_context_t *context)
 
 /********************************************************************
  * Function Name: sha256_update
- * Description:  sha256 update function
+ * Description:  optiga_sha256 update function
  * [in] input_data pointer to input data
  * [in] input_length byte length of input data
- * [in,out] context pointer to sha256 context
+ * [in,out] context pointer to optiga_sha256 context
  ********************************************************************/
 static void sha256_update(const uint8_t *input_data, const uint32_t input_length, sha256_context_t *context)
 {
@@ -1485,8 +1485,8 @@ static void sha256_update(const uint8_t *input_data, const uint32_t input_length
 
 /********************************************************************
  * Function Name: sha256_init
- * Description:   sha256 context initialization
- *                [in,out] context pointer to sha256 context
+ * Description:   optiga_sha256 context initialization
+ *                [in,out] context pointer to optiga_sha256 context
  *
  *
  ********************************************************************/
@@ -1505,13 +1505,13 @@ void sha256_init(sha256_context_t *context)
 }
 
 /********************************************************************
- * Function Name: sha256
- * Description:   Perform sha256 hashing in one call
+ * Function Name: optiga_sha256
+ * Description:   Perform optiga_sha256 hashing in one call
  *                [out] hash_value pointer to hash output
  *                [in] input_data pointer to data to hash
  *                [in] input_length byte length of hash data
  ********************************************************************/
-void sha256(uint8_t *hash_value, const uint8_t *input_data, const uint32_t input_length)
+void optiga_sha256(uint8_t *hash_value, const uint8_t *input_data, const uint32_t input_length)
 {
 	sha256_context_t ctx;
 

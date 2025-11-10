@@ -8307,7 +8307,7 @@ static bool init_sha256_gauge_auth(struct chip_bq27541 *chip)
 	pr_info("%s start\n", __func__);
 	ret = get_smem_sha256_batt_info(chip, &sha256_auth);
 	if (!ret) {
-		pr_err("get smem sha256 batt info failed\n");
+		pr_err("get smem optiga_sha256 batt info failed\n");
 		return ret;
 	}
 

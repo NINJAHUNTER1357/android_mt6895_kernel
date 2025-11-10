@@ -8,7 +8,7 @@
 
 #include "ucl_sha256.h"
 
-/** The main loop of sha256.
+/** The main loop of optiga_sha256.
  *
  * @param[in,out] hash The intermediate hash, u32[8]
  * @param[in] stone A "Stone" of the padded message,u32[16]
