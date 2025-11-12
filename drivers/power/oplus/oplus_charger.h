@@ -196,7 +196,7 @@
 #endif
 
 #if IS_ENABLED(CONFIG_OPLUS_CHG_TEST_KIT)
-#include "../test-kit/test-kit.h"
+#include "oplus/test-kit/test-kit.h"
 #endif
 
 #if IS_ENABLED(CONFIG_DRM_PANEL_NOTIFY) || IS_ENABLED(CONFIG_OPLUS_CHG_DRM_PANEL_NOTIFY)

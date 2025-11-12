@@ -37,4 +37,3 @@ echo '✅ Kernel build complete — Image.gz copied to out/dist/';
 "
 
 # Optional: skip full cleanup to speed up rebuilds
-# SKIP_MRPROPER=1

@@ -83,7 +83,7 @@
 #include "../oplus/oplus_chg_module.h"
 #include "../oplus/oplus_chg_comm.h"
 #include "../oplus/oplus_wireless.h"
-#include "../oplus/oplus_chg_wls.h"
+#include "../oplus/op_wlchg_v2/oplus_chg_wls.h"
 #include "../oplus/oplus_pps.h"
 
 struct oplus_chg_chip *g_oplus_chip = NULL;
@@ -3494,14 +3494,14 @@ static void mtk_charger_external_power_changed(struct power_supply *psy)
 			oplus_chg_clear_chargerid_info();
 		}
 
-		pps_level = oplus_pps_get_value();
+		pps_level = oplus_pps_get_power();
 		if (pps_level == 1) {
 			chg_err("need reset pps ctrl gpio!\n");
-			oplus_start_svooc_reset();
+			oplus_vooc_reset_mcu();
 		}
 
 		oplus_pps_cancel_update_work_sync();
-		oplus_pps_status_reset();
+		oplus_pps_cp_reset();
 	} else {
 		oplus_chg_global_event(chip->chgic_mtk.oplus_info->usb_ocm, OPLUS_CHG_EVENT_ONLINE);
 		oplus_wake_up_usbtemp_thread();
@@ -3887,15 +3887,15 @@ static int pd_tcp_notifier_call(struct notifier_block *pnb,
 			}
 		}
 		break;
-	case TCP_NOTIFY_UVLO_STATE:
-		pinfo->uvlo_status = noti->uvlo_state.uvlo;
-		pr_err("%s uvlo = %d\n", __func__, noti->uvlo_state.uvlo);
-
-		if (pinfo->uvlo_status) {
-			oplus_chg_wake_update_work();
-			oplus_wake_up_usbtemp_thread();
-		}
-		break;
+//	case TCP_NOTIFY_UVLO_STATE:
+//		pinfo->uvlo_status = noti->uvlo_state.uvlo;
+//		pr_err("%s uvlo = %d\n", __func__, noti->uvlo_state.uvlo);
+//
+//		if (pinfo->uvlo_status) {
+//			oplus_chg_wake_update_work();
+//			oplus_wake_up_usbtemp_thread();
+//		}
+//		break;
 	}
 	return ret;
 }

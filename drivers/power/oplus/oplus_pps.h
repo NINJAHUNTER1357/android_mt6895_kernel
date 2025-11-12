@@ -17,7 +17,7 @@
 #include <linux/device.h>
 #include <linux/types.h>
 #if IS_ENABLED(CONFIG_OPLUS_DYNAMIC_CONFIG_CHARGER)
-#include <oplus_cfg.h>
+#include "config/oplus_cfg.h"
 #endif
 #define pps_err(fmt, ...) printk(KERN_ERR "[OPLUS_PPS][%s]" fmt, __func__, ##__VA_ARGS__)
 #define pps_info(fmt, ...) printk(KERN_INFO "[OPLUS_PPS][%s]" fmt, __func__, ##__VA_ARGS__)

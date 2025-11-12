@@ -9,7 +9,7 @@
 #include <linux/completion.h>
 #include <linux/mutex.h>
 #if IS_ENABLED(CONFIG_OPLUS_DYNAMIC_CONFIG_CHARGER)
-#include <oplus_cfg.h>
+#include "../config/oplus_cfg.h"
 #endif
 #ifdef CONFIG_OPLUS_CHG_OOS
 #include <linux/oem/oplus_chg.h>
