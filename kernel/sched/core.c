@@ -7639,6 +7639,8 @@ static inline int preempt_count_equals(int preempt_offset)
 	return (nested == preempt_offset);
 }
 
+void might_alloc(gfp_t gfp_mask)
+
 void __might_sleep(const char *file, int line, int preempt_offset)
 {
 	/*

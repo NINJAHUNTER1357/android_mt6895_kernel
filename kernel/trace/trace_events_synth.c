@@ -833,20 +833,19 @@ static int synth_event_reg(struct trace_event_call *call,
 	struct synth_event *event = container_of(call, struct synth_event, call);
 
 	switch (type) {
+
 #ifdef CONFIG_PERF_EVENTS
-	case TRACE_REG_PERF_REGISTER:
+        case TRACE_REG_PERF_REGISTER:
 #endif
-	case TRACE_REG_REGISTER:
-		if (!try_module_get(event->mod))
-			return -EBUSY;
-		break;
-	default:
-		break;
-	}
+        case TRACE_REG_REGISTER:
+                if (!try_module_get(event->mod))
+                        return -EBUSY;
+                break;
+        default:
+                break;
+        }
 
-	int ret = trace_event_reg(call, type, data);
-
-	switch (type) {
+        switch (type) {
 #ifdef CONFIG_PERF_EVENTS
 	case TRACE_REG_PERF_UNREGISTER:
 #endif
@@ -856,7 +855,7 @@ static int synth_event_reg(struct trace_event_call *call,
 	default:
 		break;
 	}
-	return ret;
+	return 0;
 }
 
 static int register_synth_event(struct synth_event *event)

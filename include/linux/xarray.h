@@ -15,6 +15,7 @@
 #include <linux/kconfig.h>
 #include <linux/kernel.h>
 #include <linux/rcupdate.h>
+#include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>

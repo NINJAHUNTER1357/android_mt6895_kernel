@@ -6293,10 +6293,6 @@ static int ext4_write_info(struct super_block *sb, int type)
 	err = ext4_journal_stop(handle);
 	if (!ret)
 		ret = err;
-
-	if (freeze_protected)
-		sb_end_intwrite(dquot->dq_sb);
-
 	return ret;
 }
 

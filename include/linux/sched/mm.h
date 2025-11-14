@@ -9,6 +9,8 @@
 #include <linux/gfp.h>
 #include <linux/sync_core.h>
 
+void might_alloc(gfp_t gfp_mask);
+
 /*
  * Routines for handling mm_structs
  */

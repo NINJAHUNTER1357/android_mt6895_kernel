@@ -45,29 +45,39 @@ static inline const char *fetch_message_locked(struct fc_log *log, size_t len,
  * Only one message is returned for each read(2) call.
  */
 static ssize_t fscontext_read(struct file *file,
-			      char __user *_buf, size_t len, loff_t *pos)
+                              char __user *_buf, size_t len, loff_t *pos)
 {
-	struct fs_context *fc = file->private_data;
-	ssize_t err;
-	const char *p __free(kfree) = NULL, *message;
-	bool need_free;
-	int n;
+        struct fs_context *fc = file->private_data;
+        ssize_t err;
+        const char *p = NULL;
+        const char *message;
+        bool need_free;
+        int n;
 
-	err = mutex_lock_interruptible(&fc->uapi_mutex);
-	if (err < 0)
-		return err;
-	message = fetch_message_locked(fc->log.log, len, &need_free);
-	mutex_unlock(&fc->uapi_mutex);
-	if (IS_ERR(message))
-		return PTR_ERR(message);
+        err = mutex_lock_interruptible(&fc->uapi_mutex);
+        if (err < 0)
+                return err;
 
-	if (need_free)
-		p = message;
+        message = fetch_message_locked(fc->log.log, len, &need_free);
+        mutex_unlock(&fc->uapi_mutex);
 
-	n = strlen(message);
-	if (copy_to_user(_buf, message, n))
-		return -EFAULT;
-	return n;
+        if (IS_ERR(message))
+                return PTR_ERR(message);
+
+        if (need_free)
+                p = message;
+
+        n = strlen(message);
+        if (copy_to_user(_buf, message, n)) {
+                if (need_free)
+                        kfree(p);
+                return -EFAULT;
+        }
+
+        if (need_free)
+                kfree(p);
+
+        return n;
 }
 
 static int fscontext_release(struct inode *inode, struct file *file)
