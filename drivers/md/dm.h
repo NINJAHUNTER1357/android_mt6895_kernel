@@ -33,6 +33,9 @@
  * Status feature flags
  */
 #define DM_STATUS_NOFLUSH_FLAG		(1 << 0)
+#ifndef DMF_BLOCK_IO_FOR_SUSPEND
+#define DMF_BLOCK_IO_FOR_SUSPEND   31   /* or any unused bit */
+#endif
 
 /*
  * List of devices that a metadevice uses and should open/close.

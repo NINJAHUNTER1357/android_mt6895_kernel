@@ -67,18 +67,22 @@ static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *
 	struct neighbour *neigh;
 	int ret;
 
-	/* Be paranoid, rather than too clever. */
-	if (unlikely(hh_len > skb_headroom(skb)) && dev->header_ops) {
-		/* Make sure idev stays alive */
-		rcu_read_lock();
-		skb = skb_expand_head(skb, hh_len);
-		if (!skb) {
-			IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTDISCARDS);
-			rcu_read_unlock();
-			return -ENOMEM;
-		}
-		rcu_read_unlock();
-	}
+/* Be paranoid, rather than too clever. */
+if (unlikely(hh_len > skb_headroom(skb)) && dev->header_ops) {
+        /* Make sure idev stays alive */
+        rcu_read_lock();
+
+        /* Older kernels do not have skb_expand_head() → use pskb_expand_head() */
+        if (pskb_expand_head(skb, hh_len, 0, GFP_ATOMIC)) {
+                /* failed to expand headroom */
+                IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTDISCARDS);
+                rcu_read_unlock();
+                kfree_skb(skb);
+                return -ENOMEM;
+        }
+
+        rcu_read_unlock();
+}
 
 	hdr = ipv6_hdr(skb);
 	daddr = &hdr->daddr;
@@ -272,17 +276,20 @@ int ip6_xmit(const struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 	if (opt)
 		head_room += opt->opt_nflen + opt->opt_flen;
 
-	if (unlikely(head_room > skb_headroom(skb))) {
-		/* Make sure idev stays alive */
-		rcu_read_lock();
-		skb = skb_expand_head(skb, head_room);
-		if (!skb) {
-			IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTDISCARDS);
-			rcu_read_unlock();
-			return -ENOBUFS;
-		}
-		rcu_read_unlock();
-	}
+if (unlikely(head_room > skb_headroom(skb))) {
+        /* Make sure idev stays alive */
+        rcu_read_lock();
+
+        /* Use pskb_expand_head() instead of missing skb_expand_head() */
+        if (pskb_expand_head(skb, head_room, 0, GFP_ATOMIC)) {
+                IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTDISCARDS);
+                rcu_read_unlock();
+                kfree_skb(skb);
+                return -ENOBUFS;
+        }
+
+        rcu_read_unlock();
+}
 
 	if (opt) {
 		seg_len += opt->opt_nflen + opt->opt_flen;

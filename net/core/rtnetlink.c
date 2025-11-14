@@ -4135,13 +4135,14 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -ENODEV;
 	}
 
-	if (!del_bulk) {
-		if (!tb[NDA_LLADDR] || nla_len(tb[NDA_LLADDR]) != ETH_ALEN) {
-			NL_SET_ERR_MSG(extack, "invalid address");
-			return -EINVAL;
-		}
-		addr = nla_data(tb[NDA_LLADDR]);
-	}
+        /* Vendor kernel lacks del_bulk → always use legacy path */
+        {
+                if (!tb[NDA_LLADDR] || nla_len(tb[NDA_LLADDR]) != ETH_ALEN) {
+                        NL_SET_ERR_MSG(extack, "invalid address");
+                        return -EINVAL;
+                }
+                addr = nla_data(tb[NDA_LLADDR]);
+        }
 
 	if (dev->type != ARPHRD_ETHER) {
 		NL_SET_ERR_MSG(extack, "FDB add only supported for Ethernet devices");

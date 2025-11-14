@@ -136,7 +136,6 @@ EXPORT_SYMBOL_GPL(dm_bio_get_target_bio_nr);
 /*
  * Bits for the md->flags field.
  */
-#define DMF_BLOCK_IO_FOR_SUSPEND 0
 #define DMF_SUSPENDED 1
 #define DMF_FROZEN 2
 #define DMF_FREEING 3

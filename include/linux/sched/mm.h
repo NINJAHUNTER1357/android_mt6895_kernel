@@ -9,6 +9,17 @@
 #include <linux/gfp.h>
 #include <linux/sync_core.h>
 
+/*
+ * Backport: might_alloc() required by new XArray code.
+ * Vendor kernels do not implement allocation debugging,
+ * so we provide a no-op stub.
+ */
+static inline void might_alloc(gfp_t gfp)
+{
+        /* No-op for vendor kernels */
+}
+
+
 void might_alloc(gfp_t gfp_mask);
 
 /*

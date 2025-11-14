@@ -1817,6 +1817,22 @@ static int pidfd_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+/*
+ * Backport: __pidfd_prepare() helper for older 5.10 vendor kernels.
+ */
+int __pidfd_prepare(struct pid *pid, unsigned int flags, struct file **ret)
+{
+        struct file *file;
+
+        file = anon_inode_getfile("[pidfd]", NULL, pid, flags);
+        if (IS_ERR(file))
+                return PTR_ERR(file);
+
+        *ret = file;
+        return 0;
+}
+EXPORT_SYMBOL_GPL(__pidfd_prepare);
+
 #ifdef CONFIG_PROC_FS
 /**
  * pidfd_show_fdinfo - print information about a pidfd

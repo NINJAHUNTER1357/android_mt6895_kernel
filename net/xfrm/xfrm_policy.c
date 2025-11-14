@@ -2611,7 +2611,8 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 				mark = xfrm_smark_get(fl->flowi_mark, xfrm[i]);
 
 			family = xfrm[i]->props.family;
-			oif = fl->flowi_oif ? : fl->flowi_l3mdev;
+			/* Vendor kernel has no flowi_l3mdev → fallback */
+                        oif = fl->flowi_oif;
 			dst = xfrm_dst_lookup(xfrm[i], tos, oif,
 					      &saddr, &daddr, family, mark);
 			err = PTR_ERR(dst);

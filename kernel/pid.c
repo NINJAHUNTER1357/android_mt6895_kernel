@@ -116,32 +116,6 @@ void put_pid(struct pid *pid)
 	}
 }
 EXPORT_SYMBOL_GPL(put_pid);
-/*
- * Backport: __pidfd_prepare()
- *
- * Newer 5.10+ stable kernels call this helper from fork.c
- * Vendor kernels do not implement it, so we provide a safe stub.
- */
-int __pidfd_prepare(struct pid *pid, unsigned int flags, struct file **ret)
-{
-        struct file *file;
-
-        /*
-         * The modern kernel uses anon_inode_getfile("[pidfd]", ...).
-         * Older vendor kernels also support it in anon_inodes.h,
-         * so this is the safest API to use.
-         */
-
-        file = anon_inode_getfile("[pidfd]", NULL, pid, flags);
-        if (IS_ERR(file))
-                return PTR_ERR(file);
-
-        /* Assign the file return pointer */
-        *ret = file;
-
-        return 0;  /* success */
-}
-EXPORT_SYMBOL_GPL(__pidfd_prepare);
 
 static void delayed_put_pid(struct rcu_head *rhp)
 {
