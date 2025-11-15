@@ -1,0 +1,55 @@
+KERNEL_DIR=kernel-5.10
+
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
+
+# SKIP_MRPROPER=1
+DEFCONFIG=oplus6895_defconfig
+PRE_DEFCONFIG_CMDS="KCONFIG_CONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/mgk_64_k510_defconfig ${ROOT_DIR}/${KERNEL_DIR}/kernel/configs/oplus6895.config"
+POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
+
+# Need to run manually the command below
+# find ${ROOT_DIR}/out/${BRANCH}/dist -type f -name *.ko -exec ${ROOT_DIR}/${CLANG_PREBUILT_BIN}/${OBJCOPY} --strip-debug {} \;
+
+MAKE_GOALS="
+Image.gz
+"
+
+FILES="
+arch/arm64/boot/Image.gz
+vmlinux
+System.map
+vmlinux.symvers
+modules.builtin
+modules.builtin.modinfo
+"
+DTC='${OUT_DIR}/scripts/dtc/dtc'
+
+ABI_OUT_TAG="mtk"
+KMI_SYMBOL_LIST=android/abi_gki_aarch64_mtk
+ADDITIONAL_KMI_SYMBOL_LISTS=android/abi_gki_aarch64_oplus_internal
+GKI_MODULES_LIST=android/gki_aarch64_modules
+ABI_DEFINITION=android/abi_gki_aarch64.xml
+
+TARGET_BUILD_VARIANT=user
+
+BT_PLATFORM=6895
+LOG_TAG=[BT_Drv][btif]
+
+BUILD_CONNAC2=true
+CFG_BUILD_CONNAC2=true
+CFG_FM_CHIP=mt6635
+CFG_FM_PLAT=connac2x
+FM_CHIP=mt6635
+FM_PLAT=connac2x
+
+CONFIG_MTK_COMBO_WIFI_HIF=axi
+CONNAC_VER=2_0
+MTK_ANDROID_EMI=y
+MTK_ANDROID_WMT=y
+MTK_COMBO_CHIP=CONNAC2X2_SOC7_0
+MTK_WLAN_SERVICE=yes
+WIFI_IP_SET=1
+WLAN_CHIP_ID=6895
+
+CHIPSET_COMPANY=MTK
