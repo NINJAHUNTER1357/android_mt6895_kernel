@@ -252,7 +252,7 @@ out:
 	if (v->mode == DM_VERITY_MODE_LOGGING)
 		return 0;
 
-	if (v->mode == DM_VERITY_MODE_RESTART) {
+	if (v->mode == DM_VERITY_MODE_RESTART) 
 		panic("MODE_RESTART:dm-verity device corrupted");
 
 	if (v->mode == DM_VERITY_MODE_PANIC)
