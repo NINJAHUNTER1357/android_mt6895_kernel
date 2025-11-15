@@ -729,9 +729,6 @@ static inline bool device_pm_not_required(struct device *dev)
 static inline void device_set_pm_not_required(struct device *dev)
 {
 	dev->power.no_pm = true;
-#ifdef CONFIG_PM
-	dev->power.no_callbacks = true;
-#endif
 }
 
 static inline void dev_pm_syscore_device(struct device *dev, bool val)
@@ -810,8 +807,6 @@ struct device *device_find_child(struct device *dev, void *data,
 				 int (*match)(struct device *dev, void *data));
 struct device *device_find_child_by_name(struct device *parent,
 					 const char *name);
-struct device *device_find_any_child(struct device *parent);
-
 int device_rename(struct device *dev, const char *new_name);
 int device_move(struct device *dev, struct device *new_parent,
 		enum dpm_order dpm_order);

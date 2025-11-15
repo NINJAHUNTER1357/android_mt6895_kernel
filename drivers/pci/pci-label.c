@@ -62,11 +62,13 @@ static size_t find_smbios_instance_string(struct pci_dev *pdev, char *buf,
 				donboard->devfn == devfn) {
 			if (buf) {
 				if (attribute == SMBIOS_ATTR_INSTANCE_SHOW)
-					return sysfs_emit(buf, "%d\n",
-							  donboard->instance);
+					return scnprintf(buf, PAGE_SIZE,
+							 "%d\n",
+							 donboard->instance);
 				else if (attribute == SMBIOS_ATTR_LABEL_SHOW)
-					return sysfs_emit(buf, "%s\n",
-							  dmi->name);
+					return scnprintf(buf, PAGE_SIZE,
+							 "%s\n",
+							 dmi->name);
 			}
 			return strlen(dmi->name);
 		}

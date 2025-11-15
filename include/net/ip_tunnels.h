@@ -240,17 +240,11 @@ static inline __be32 tunnel_id_to_key32(__be64 tun_id)
 static inline void ip_tunnel_init_flow(struct flowi4 *fl4,
 				       int proto,
 				       __be32 daddr, __be32 saddr,
-				       __be32 key, __u8 tos,
-				       struct net *net, int oif,
+				       __be32 key, __u8 tos, int oif,
 				       __u32 mark, __u32 tun_inner_hash)
 {
 	memset(fl4, 0, sizeof(*fl4));
-
-	/* Older vendor kernels do not support flowi4_l3mdev */
-        if (oif) {
-                fl4->flowi4_oif = oif;
-        }
-
+	fl4->flowi4_oif = oif;
 	fl4->daddr = daddr;
 	fl4->saddr = saddr;
 	fl4->flowi4_tos = tos;
@@ -465,21 +459,6 @@ struct metadata_dst *iptunnel_metadata_reply(struct metadata_dst *md,
 					     gfp_t flags);
 int skb_tunnel_check_pmtu(struct sk_buff *skb, struct dst_entry *encap_dst,
 			  int headroom, bool reply);
-
-static inline void ip_tunnel_adj_headroom(struct net_device *dev,
-					  unsigned int headroom)
-{
-	/* we must cap headroom to some upperlimit, else pskb_expand_head
-	 * will overflow header offsets in skb_headers_offset_update().
-	 */
-	const unsigned int max_allowed = 512;
-
-	if (headroom > max_allowed)
-		headroom = max_allowed;
-
-	if (headroom > READ_ONCE(dev->needed_headroom))
-		WRITE_ONCE(dev->needed_headroom, headroom);
-}
 
 int iptunnel_handle_offloads(struct sk_buff *skb, int gso_type_mask);
 

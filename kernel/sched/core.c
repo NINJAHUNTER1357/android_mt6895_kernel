@@ -296,15 +296,13 @@ static void update_rq_clock_task(struct rq *rq, s64 delta)
 #endif
 #ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
 	if (static_key_false((&paravirt_steal_rq_enabled))) {
-		u64 prev_steal;
-
-		steal = prev_steal = paravirt_steal_clock(cpu_of(rq));
+		steal = paravirt_steal_clock(cpu_of(rq));
 		steal -= rq->prev_steal_time_rq;
 
 		if (unlikely(steal > delta))
 			steal = delta;
 
-		rq->prev_steal_time_rq = prev_steal;
+		rq->prev_steal_time_rq += steal;
 		delta -= steal;
 	}
 #endif
@@ -787,13 +785,13 @@ static void nohz_csd_func(void *info)
 	/*
 	 * Release the rq::nohz_csd.
 	 */
-	flags = atomic_fetch_andnot(NOHZ_KICK_MASK | NOHZ_NEWILB_KICK, nohz_flags(cpu));
+	flags = atomic_fetch_andnot(NOHZ_KICK_MASK, nohz_flags(cpu));
 	WARN_ON(!(flags & NOHZ_KICK_MASK));
 
 	rq->idle_balance = idle_cpu(cpu);
-	if (rq->idle_balance) {
+	if (rq->idle_balance && !need_resched()) {
 		rq->nohz_idle_balance = flags;
-		__raise_softirq_irqoff(SCHED_SOFTIRQ);
+		raise_softirq_irqoff(SCHED_SOFTIRQ);
 	}
 }
 
@@ -6401,7 +6399,7 @@ SYSCALL_DEFINE0(sched_yield)
 #ifndef CONFIG_PREEMPTION
 int __sched _cond_resched(void)
 {
-	if (should_resched(0) && !irqs_disabled()) {
+	if (should_resched(0)) {
 		preempt_schedule_common();
 		return 1;
 	}
@@ -7638,8 +7636,6 @@ static inline int preempt_count_equals(int preempt_offset)
 
 	return (nested == preempt_offset);
 }
-
-void might_alloc(gfp_t gfp_mask)
 
 void __might_sleep(const char *file, int line, int preempt_offset)
 {

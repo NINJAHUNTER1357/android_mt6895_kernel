@@ -868,8 +868,7 @@ static void nfs4_free_deleg(struct nfs4_stid *stid)
  * When a delegation is recalled, the filehandle is stored in the "new"
  * filter.
  * Every 30 seconds we swap the filters and clear the "new" one,
- * unless both are empty of course.  This results in delegations for a
- * given filehandle being blocked for between 30 and 60 seconds.
+ * unless both are empty of course.
  *
  * Each filter is 256 bits.  We hash the filehandle to 32bit and use the
  * low 3 bytes as hash-table indices.
@@ -898,9 +897,9 @@ static int delegation_blocked(struct knfsd_fh *fh)
 		if (ktime_get_seconds() - bd->swap_time > 30) {
 			bd->entries -= bd->old_entries;
 			bd->old_entries = bd->entries;
-			bd->new = 1-bd->new;
 			memset(bd->set[bd->new], 0,
 			       sizeof(bd->set[0]));
+			bd->new = 1-bd->new;
 			bd->swap_time = ktime_get_seconds();
 		}
 		spin_unlock(&blocked_delegations_lock);
@@ -1504,14 +1503,6 @@ static void release_open_stateid(struct nfs4_ol_stateid *stp)
 		put_ol_stateid_locked(stp, &reaplist);
 	spin_unlock(&stp->st_stid.sc_client->cl_lock);
 	free_ol_stateid_reaplist(&reaplist);
-}
-
-static bool nfs4_openowner_unhashed(struct nfs4_openowner *oo)
-{
-	lockdep_assert_held(&oo->oo_owner.so_client->cl_lock);
-
-	return list_empty(&oo->oo_owner.so_strhash) &&
-		list_empty(&oo->oo_perclient);
 }
 
 static void unhash_openowner_locked(struct nfs4_openowner *oo)
@@ -4381,12 +4372,6 @@ retry:
 	spin_lock(&oo->oo_owner.so_client->cl_lock);
 	spin_lock(&fp->fi_lock);
 
-	if (nfs4_openowner_unhashed(oo)) {
-		mutex_unlock(&stp->st_mutex);
-		stp = NULL;
-		goto out_unlock;
-	}
-
 	retstp = nfsd4_find_existing_open(fp, open);
 	if (retstp)
 		goto out_unlock;
@@ -5222,20 +5207,6 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 		status = nfs4_check_deleg(cl, open, &dp);
 		if (status)
 			goto out;
-		if (dp && nfsd4_is_deleg_cur(open) &&
-				(dp->dl_stid.sc_file != fp)) {
-			/*
-			 * RFC8881 section 8.2.4 mandates the server to return
-			 * NFS4ERR_BAD_STATEID if the selected table entry does
-			 * not match the current filehandle. However returning
-			 * NFS4ERR_BAD_STATEID in the OPEN can cause the client
-			 * to repeatedly retry the operation with the same
-			 * stateid, since the stateid itself is valid. To avoid
-			 * this situation NFSD returns NFS4ERR_INVAL instead.
-			 */
-			status = nfserr_inval;
-			goto out;
-		}
 		stp = nfsd4_find_and_lock_existing_open(fp, open);
 	} else {
 		open->op_file = NULL;
@@ -5246,11 +5217,6 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 
 	if (!stp) {
 		stp = init_open_stateid(fp, open);
-		if (!stp) {
-			status = nfserr_jukebox;
-			goto out;
-		}
-
 		if (!open->op_stp)
 			new_stp = true;
 	}

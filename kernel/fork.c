@@ -1612,7 +1612,7 @@ static int copy_io(unsigned long clone_flags, struct task_struct *tsk)
 	return 0;
 }
 
-static int copy_sighand(u64 clone_flags, struct task_struct *tsk)
+static int copy_sighand(unsigned long clone_flags, struct task_struct *tsk)
 {
 	struct sighand_struct *sig;
 
@@ -1816,22 +1816,6 @@ static int pidfd_release(struct inode *inode, struct file *file)
 	put_pid(pid);
 	return 0;
 }
-
-/*
- * Backport: __pidfd_prepare() helper for older 5.10 vendor kernels.
- */
-int __pidfd_prepare(struct pid *pid, unsigned int flags, struct file **ret)
-{
-        struct file *file;
-
-        file = anon_inode_getfile("[pidfd]", NULL, pid, flags);
-        if (IS_ERR(file))
-                return PTR_ERR(file);
-
-        *ret = file;
-        return 0;
-}
-EXPORT_SYMBOL_GPL(__pidfd_prepare);
 
 #ifdef CONFIG_PROC_FS
 /**
@@ -2264,11 +2248,20 @@ static __latent_entropy struct task_struct *copy_process(
 	 * if the fd table isn't shared).
 	 */
 	if (clone_flags & CLONE_PIDFD) {
-		/* Note that no task has been attached to @pid yet. */
-		retval = __pidfd_prepare(pid, O_RDWR | O_CLOEXEC, &pidfile);
+		retval = get_unused_fd_flags(O_RDWR | O_CLOEXEC);
 		if (retval < 0)
 			goto bad_fork_free_pid;
+
 		pidfd = retval;
+
+		pidfile = anon_inode_getfile("[pidfd]", &pidfd_fops, pid,
+					      O_RDWR | O_CLOEXEC);
+		if (IS_ERR(pidfile)) {
+			put_unused_fd(pidfd);
+			retval = PTR_ERR(pidfile);
+			goto bad_fork_free_pid;
+		}
+		get_pid(pid);	/* held by pidfile now */
 
 		retval = put_user(pidfd, args->pidfd);
 		if (retval)

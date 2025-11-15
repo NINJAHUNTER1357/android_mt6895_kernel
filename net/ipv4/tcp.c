@@ -478,11 +478,22 @@ static void tcp_tx_timestamp(struct sock *sk, u16 tsflags)
 	}
 }
 
-static bool tcp_stream_is_readable(struct sock *sk, int target)
+static inline bool tcp_stream_is_readable(const struct tcp_sock *tp,
+					  int target, struct sock *sk)
 {
-	if (tcp_epollin_ready(sk, target))
-		return true;
-	return sk_is_readable(sk);
+	int avail = READ_ONCE(tp->rcv_nxt) - READ_ONCE(tp->copied_seq);
+
+	if (avail > 0) {
+		if (avail >= target)
+			return true;
+		if (tcp_rmem_pressure(sk))
+			return true;
+		if (tcp_receive_window(tp) <= inet_csk(sk)->icsk_ack.rcv_mss)
+			return true;
+	}
+	if (sk->sk_prot->stream_memory_read)
+		return sk->sk_prot->stream_memory_read(sk);
+	return false;
 }
 
 /*
@@ -556,7 +567,7 @@ __poll_t tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 		    tp->urg_data)
 			target++;
 
-		if (tcp_stream_is_readable(sk, target))
+		if (tcp_stream_is_readable(tp, target, sk))
 			mask |= EPOLLIN | EPOLLRDNORM;
 
 		if (!(shutdown & SEND_SHUTDOWN)) {
@@ -2515,8 +2526,8 @@ bool tcp_check_oom(struct sock *sk, int shift)
 
 void __tcp_close(struct sock *sk, long timeout)
 {
-	bool data_was_unread = false;
 	struct sk_buff *skb;
+	int data_was_unread = 0;
 	int state;
 
 	WRITE_ONCE(sk->sk_shutdown, SHUTDOWN_MASK);
@@ -2535,12 +2546,11 @@ void __tcp_close(struct sock *sk, long timeout)
 	 *  reader process may not have drained the data yet!
 	 */
 	while ((skb = __skb_dequeue(&sk->sk_receive_queue)) != NULL) {
-		u32 end_seq = TCP_SKB_CB(skb)->end_seq;
+		u32 len = TCP_SKB_CB(skb)->end_seq - TCP_SKB_CB(skb)->seq;
 
 		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
-			end_seq--;
-		if (after(end_seq, tcp_sk(sk)->copied_seq))
-			data_was_unread = true;
+			len--;
+		data_was_unread += len;
 		__kfree_skb(skb);
 	}
 

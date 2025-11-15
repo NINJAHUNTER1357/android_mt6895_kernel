@@ -1580,9 +1580,6 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 	struct xfrm_policy *delpol;
 	struct hlist_head *chain;
 
-	/* Sanitize mark before store */
-	policy->mark.v &= policy->mark.m;
-
 	spin_lock_bh(&net->xfrm.xfrm_policy_lock);
 	chain = policy_hash_bysel(net, &policy->selector, policy->family, dir);
 	if (chain)
@@ -2605,15 +2602,12 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 
 		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
 			__u32 mark = 0;
-			int oif;
 
 			if (xfrm[i]->props.smark.v || xfrm[i]->props.smark.m)
 				mark = xfrm_smark_get(fl->flowi_mark, xfrm[i]);
 
 			family = xfrm[i]->props.family;
-			/* Vendor kernel has no flowi_l3mdev → fallback */
-                        oif = fl->flowi_oif;
-			dst = xfrm_dst_lookup(xfrm[i], tos, oif,
+			dst = xfrm_dst_lookup(xfrm[i], tos, fl->flowi_oif,
 					      &saddr, &daddr, family, mark);
 			err = PTR_ERR(dst);
 			if (IS_ERR(dst))

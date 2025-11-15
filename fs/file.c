@@ -21,7 +21,6 @@
 #include <linux/rcupdate.h>
 #include <linux/close_range.h>
 #include <net/sock.h>
-#include <linux/init_task.h>
 
 #include "internal.h"
 
@@ -125,21 +124,6 @@ static struct fdtable * alloc_fdtable(unsigned int nr)
 	 */
 	if (unlikely(nr > sysctl_nr_open))
 		nr = ((sysctl_nr_open - 1) | (BITS_PER_LONG - 1)) + 1;
-
-	/*
-	 * Check if the allocation size would exceed INT_MAX. kvmalloc_array()
-	 * and kvmalloc() will warn if the allocation size is greater than
-	 * INT_MAX, as filp_cachep objects are not __GFP_NOWARN.
-	 *
-	 * This can happen when sysctl_nr_open is set to a very high value and
-	 * a process tries to use a file descriptor near that limit. For example,
-	 * if sysctl_nr_open is set to 1073741816 (0x3ffffff8) - which is what
-	 * systemd typically sets it to - then trying to use a file descriptor
-	 * close to that value will require allocating a file descriptor table
-	 * that exceeds 8GB in size.
-	 */
-	if (unlikely(nr > INT_MAX / sizeof(struct file *)))
-		return ERR_PTR(-EMFILE);
 
 	fdt = kmalloc(sizeof(struct fdtable), GFP_KERNEL_ACCOUNT);
 	if (!fdt)
@@ -1143,10 +1127,7 @@ int replace_fd(unsigned fd, struct file *file, unsigned flags)
 	err = expand_files(files, fd);
 	if (unlikely(err < 0))
 		goto out_unlock;
-	err = do_dup2(files, file, fd, flags);
-	if (err < 0)
-		return err;
-	return 0;
+	return do_dup2(files, file, fd, flags);
 
 out_unlock:
 	spin_unlock(&files->file_lock);

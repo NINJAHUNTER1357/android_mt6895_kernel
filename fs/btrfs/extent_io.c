@@ -13,7 +13,6 @@
 #include <linux/pagevec.h>
 #include <linux/prefetch.h>
 #include <linux/cleancache.h>
-#include "misc.h"
 #include "extent_io.h"
 #include "extent-io-tree.h"
 #include "extent_map.h"
@@ -4961,8 +4960,12 @@ __alloc_extent_buffer(struct btrfs_fs_info *fs_info, u64 start,
 	eb->len = len;
 	eb->fs_info = fs_info;
 	eb->bflags = 0;
-	init_rwsem(&eb->lock);
+	rwlock_init(&eb->lock);
+	atomic_set(&eb->blocking_readers, 0);
+	eb->blocking_writers = 0;
 	eb->lock_recursed = false;
+	init_waitqueue_head(&eb->write_lock_wq);
+	init_waitqueue_head(&eb->read_lock_wq);
 
 	btrfs_leak_debug_add(&fs_info->eb_leak_lock, &eb->leak_list,
 			     &fs_info->allocated_ebs);
@@ -4977,6 +4980,13 @@ __alloc_extent_buffer(struct btrfs_fs_info *fs_info, u64 start,
 	BUILD_BUG_ON(BTRFS_MAX_METADATA_BLOCKSIZE
 		> MAX_INLINE_EXTENT_BUFFER_SIZE);
 	BUG_ON(len > MAX_INLINE_EXTENT_BUFFER_SIZE);
+
+#ifdef CONFIG_BTRFS_DEBUG
+	eb->spinning_writers = 0;
+	atomic_set(&eb->spinning_readers, 0);
+	atomic_set(&eb->read_locks, 0);
+	eb->write_locks = 0;
+#endif
 
 	return eb;
 }
@@ -5135,10 +5145,10 @@ struct extent_buffer *find_extent_buffer(struct btrfs_fs_info *fs_info,
 	return NULL;
 }
 
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
 					u64 start)
 {
-#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 	struct extent_buffer *eb, *exists = NULL;
 	int ret;
 
@@ -5174,11 +5184,8 @@ again:
 free_eb:
 	btrfs_release_extent_buffer(eb);
 	return exists;
-#else
-	/* Stub to avoid linker error when compiled with optimizations turned off. */
-	return NULL;
-#endif
 }
+#endif
 
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 					  u64 start)

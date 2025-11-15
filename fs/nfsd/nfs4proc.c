@@ -1133,7 +1133,7 @@ static void nfsd4_stop_copy(struct nfsd4_copy *copy)
 	nfs4_put_copy(copy);
 }
 
-static struct nfsd4_copy *nfsd4_unhash_copy(struct nfs4_client *clp)
+static struct nfsd4_copy *nfsd4_get_copy(struct nfs4_client *clp)
 {
 	struct nfsd4_copy *copy = NULL;
 
@@ -1142,9 +1142,6 @@ static struct nfsd4_copy *nfsd4_unhash_copy(struct nfs4_client *clp)
 		copy = list_first_entry(&clp->async_copies, struct nfsd4_copy,
 					copies);
 		refcount_inc(&copy->refcount);
-		copy->cp_clp = NULL;
-		if (!list_empty(&copy->copies))
-			list_del_init(&copy->copies);
 	}
 	spin_unlock(&clp->async_lock);
 	return copy;
@@ -1154,7 +1151,7 @@ void nfsd4_shutdown_copy(struct nfs4_client *clp)
 {
 	struct nfsd4_copy *copy;
 
-	while ((copy = nfsd4_unhash_copy(clp)) != NULL)
+	while ((copy = nfsd4_get_copy(clp)) != NULL)
 		nfsd4_stop_copy(copy);
 }
 #ifdef CONFIG_NFSD_V4_2_INTER_SSC
@@ -1989,6 +1986,7 @@ nfsd4_layoutcommit(struct svc_rqst *rqstp,
 	const struct nfsd4_layout_seg *seg = &lcp->lc_seg;
 	struct svc_fh *current_fh = &cstate->current_fh;
 	const struct nfsd4_layout_ops *ops;
+	loff_t new_size = lcp->lc_last_wr + 1;
 	struct inode *inode;
 	struct nfs4_layout_stateid *ls;
 	__be32 nfserr;
@@ -2003,20 +2001,18 @@ nfsd4_layoutcommit(struct svc_rqst *rqstp,
 		goto out;
 	inode = d_inode(current_fh->fh_dentry);
 
-	lcp->lc_size_chg = false;
-	if (lcp->lc_newoffset) {
-		loff_t new_size = lcp->lc_last_wr + 1;
-
-		nfserr = nfserr_inval;
-		if (new_size <= seg->offset)
-			goto out;
-		if (new_size > seg->offset + seg->length)
-			goto out;
-
-		if (new_size > i_size_read(inode)) {
-			lcp->lc_size_chg = true;
-			lcp->lc_newsize = new_size;
-		}
+	nfserr = nfserr_inval;
+	if (new_size <= seg->offset) {
+		dprintk("pnfsd: last write before layout segment\n");
+		goto out;
+	}
+	if (new_size > seg->offset + seg->length) {
+		dprintk("pnfsd: last write beyond layout segment\n");
+		goto out;
+	}
+	if (!lcp->lc_newoffset && new_size > i_size_read(inode)) {
+		dprintk("pnfsd: layoutcommit beyond EOF\n");
+		goto out;
 	}
 
 	nfserr = nfsd4_preprocess_layout_stateid(rqstp, cstate, &lcp->lc_sid,
@@ -2032,6 +2028,13 @@ nfsd4_layoutcommit(struct svc_rqst *rqstp,
 
 	/* LAYOUTCOMMIT does not require any serialization */
 	mutex_unlock(&ls->ls_mutex);
+
+	if (new_size > i_size_read(inode)) {
+		lcp->lc_size_chg = 1;
+		lcp->lc_newsize = new_size;
+	} else {
+		lcp->lc_size_chg = 0;
+	}
 
 	nfserr = ops->proc_layoutcommit(inode, lcp);
 	nfs4_put_stid(&ls->ls_stid);
@@ -3237,8 +3240,7 @@ bool nfsd4_spo_must_allow(struct svc_rqst *rqstp)
 	struct nfs4_op_map *allow = &cstate->clp->cl_spo_must_allow;
 	u32 opiter;
 
-	if (rqstp->rq_procinfo != &nfsd_version4.vs_proc[NFSPROC4_COMPOUND] ||
-	    cstate->minorversion == 0)
+	if (!cstate->minorversion)
 		return false;
 
 	if (cstate->spo_must_allowed)

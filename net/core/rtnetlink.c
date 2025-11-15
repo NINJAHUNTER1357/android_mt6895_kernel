@@ -295,8 +295,6 @@ static int rtnl_register_internal(struct module *owner,
 	if (dumpit)
 		link->dumpit = dumpit;
 
-	WARN_ON(rtnl_msgtype_kind(msgtype) != RTNL_KIND_DEL &&
-		(flags & RTNL_FLAG_BULK_DEL_SUPPORTED));
 	link->flags |= flags;
 
 	/* publish protocol:msgtype */
@@ -1033,9 +1031,6 @@ static inline int rtnl_vfinfo_size(const struct net_device *dev,
 				 /* IFLA_VF_STATS_TX_DROPPED */
 				 nla_total_size_64bit(sizeof(__u64)));
 		}
-		if (dev->netdev_ops->ndo_get_vf_guid)
-			size += num_vfs * 2 *
-				nla_total_size(sizeof(struct ifla_vf_guid));
 		return size;
 	} else
 		return 0;
@@ -4135,19 +4130,17 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -ENODEV;
 	}
 
-        /* Vendor kernel lacks del_bulk → always use legacy path */
-        {
-                if (!tb[NDA_LLADDR] || nla_len(tb[NDA_LLADDR]) != ETH_ALEN) {
-                        NL_SET_ERR_MSG(extack, "invalid address");
-                        return -EINVAL;
-                }
-                addr = nla_data(tb[NDA_LLADDR]);
-        }
+	if (!tb[NDA_LLADDR] || nla_len(tb[NDA_LLADDR]) != ETH_ALEN) {
+		NL_SET_ERR_MSG(extack, "invalid address");
+		return -EINVAL;
+	}
 
 	if (dev->type != ARPHRD_ETHER) {
 		NL_SET_ERR_MSG(extack, "FDB add only supported for Ethernet devices");
 		return -EINVAL;
 	}
+
+	addr = nla_data(tb[NDA_LLADDR]);
 
 	err = fdb_vid_parse(tb[NDA_VLAN], &vid, extack);
 	if (err)
@@ -4217,31 +4210,22 @@ int ndo_dflt_fdb_del(struct ndmsg *ndm,
 }
 EXPORT_SYMBOL(ndo_dflt_fdb_del);
 
-static const struct nla_policy fdb_del_bulk_policy[NDA_MAX + 1] = {
-	[NDA_VLAN]	= { .type = NLA_U16 },
-	[NDA_IFINDEX]	= NLA_POLICY_MIN(NLA_S32, 1),
-};
-
 static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
-	bool del_bulk = !!(nlh->nlmsg_flags & NLM_F_BULK);
 	struct net *net = sock_net(skb->sk);
-	const struct net_device_ops *ops;
 	struct ndmsg *ndm;
 	struct nlattr *tb[NDA_MAX+1];
 	struct net_device *dev;
-	__u8 *addr = NULL;
+	__u8 *addr;
 	int err;
 	u16 vid;
 
-	if (!del_bulk) {
-		err = nlmsg_parse_deprecated(nlh, sizeof(*ndm), tb, NDA_MAX,
-					     NULL, extack);
-	} else {
-		err = nlmsg_parse(nlh, sizeof(*ndm), tb, NDA_MAX,
-				  fdb_del_bulk_policy, extack);
-	}
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
+		return -EPERM;
+
+	err = nlmsg_parse_deprecated(nlh, sizeof(*ndm), tb, NDA_MAX, NULL,
+				     extack);
 	if (err < 0)
 		return err;
 
@@ -4279,16 +4263,10 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if ((!ndm->ndm_flags || ndm->ndm_flags & NTF_MASTER) &&
 	    netif_is_bridge_port(dev)) {
 		struct net_device *br_dev = netdev_master_upper_dev_get(dev);
+		const struct net_device_ops *ops = br_dev->netdev_ops;
 
-		ops = br_dev->netdev_ops;
-		if (!del_bulk) {
-			if (ops->ndo_fdb_del)
-				err = ops->ndo_fdb_del(ndm, tb, dev, addr, vid);
-		} else {
-			if (ops->ndo_fdb_del_bulk)
-				err = ops->ndo_fdb_del_bulk(ndm, tb, dev, vid,
-							    extack);
-		}
+		if (ops->ndo_fdb_del)
+			err = ops->ndo_fdb_del(ndm, tb, dev, addr, vid);
 
 		if (err)
 			goto out;
@@ -4298,24 +4276,15 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	/* Embedded bridge, macvlan, and any other device support */
 	if (ndm->ndm_flags & NTF_SELF) {
-		ops = dev->netdev_ops;
-		if (!del_bulk) {
-			if (ops->ndo_fdb_del)
-				err = ops->ndo_fdb_del(ndm, tb, dev, addr, vid);
-			else
-				err = ndo_dflt_fdb_del(ndm, tb, dev, addr, vid);
-		} else {
-			/* in case err was cleared by NTF_MASTER call */
-			err = -EOPNOTSUPP;
-			if (ops->ndo_fdb_del_bulk)
-				err = ops->ndo_fdb_del_bulk(ndm, tb, dev, vid,
-							    extack);
-		}
+		if (dev->netdev_ops->ndo_fdb_del)
+			err = dev->netdev_ops->ndo_fdb_del(ndm, tb, dev, addr,
+							   vid);
+		else
+			err = ndo_dflt_fdb_del(ndm, tb, dev, addr, vid);
 
 		if (!err) {
-			if (!del_bulk)
-				rtnl_fdb_notify(dev, addr, vid, RTM_DELNEIGH,
-						ndm->ndm_state);
+			rtnl_fdb_notify(dev, addr, vid, RTM_DELNEIGH,
+					ndm->ndm_state);
 			ndm->ndm_flags &= ~NTF_SELF;
 		}
 	}
@@ -5622,11 +5591,11 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 {
 	struct net *net = sock_net(skb->sk);
 	struct rtnl_link *link;
-	enum rtnl_kinds kind;
 	struct module *owner;
 	int err = -EOPNOTSUPP;
 	rtnl_doit_func doit;
 	unsigned int flags;
+	int kind;
 	int family;
 	int type;
 
@@ -5641,13 +5610,13 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return 0;
 
 	family = ((struct rtgenmsg *)nlmsg_data(nlh))->rtgen_family;
-	kind = rtnl_msgtype_kind(type);
+	kind = type&3;
 
-	if (kind != RTNL_KIND_GET && !netlink_net_capable(skb, CAP_NET_ADMIN))
+	if (kind != 2 && !netlink_net_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	rcu_read_lock();
-	if (kind == RTNL_KIND_GET && (nlh->nlmsg_flags & NLM_F_DUMP)) {
+	if (kind == 2 && nlh->nlmsg_flags&NLM_F_DUMP) {
 		struct sock *rtnl;
 		rtnl_dumpit_func dumpit;
 		u32 min_dump_alloc = 0;
@@ -5703,13 +5672,6 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	flags = link->flags;
-	if (kind == RTNL_KIND_DEL && (nlh->nlmsg_flags & NLM_F_BULK) &&
-	    !(flags & RTNL_FLAG_BULK_DEL_SUPPORTED)) {
-		NL_SET_ERR_MSG(extack, "Bulk delete is not supported");
-		module_put(owner);
-		goto err_unlock;
-	}
-
 	if (flags & RTNL_FLAG_DOIT_UNLOCKED) {
 		doit = link->doit;
 		rcu_read_unlock();
@@ -5838,8 +5800,7 @@ void __init rtnetlink_init(void)
 	rtnl_register(PF_UNSPEC, RTM_DELLINKPROP, rtnl_dellinkprop, NULL, 0);
 
 	rtnl_register(PF_BRIDGE, RTM_NEWNEIGH, rtnl_fdb_add, NULL, 0);
-	rtnl_register(PF_BRIDGE, RTM_DELNEIGH, rtnl_fdb_del, NULL,
-		      RTNL_FLAG_BULK_DEL_SUPPORTED);
+	rtnl_register(PF_BRIDGE, RTM_DELNEIGH, rtnl_fdb_del, NULL, 0);
 	rtnl_register(PF_BRIDGE, RTM_GETNEIGH, rtnl_fdb_get, rtnl_fdb_dump, 0);
 
 	rtnl_register(PF_BRIDGE, RTM_GETLINK, NULL, rtnl_bridge_getlink, 0);

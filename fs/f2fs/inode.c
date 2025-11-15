@@ -247,13 +247,6 @@ static bool sanity_check_inode(struct inode *inode, struct page *node_page)
 		return false;
 	}
 
-	if (ino_of_node(node_page) == fi->i_xattr_nid) {
-		set_sbi_flag(sbi, SBI_NEED_FSCK);
-		f2fs_warn(sbi, "%s: corrupted inode i_ino=%lx, xnid=%x, run fsck to fix.",
-			  __func__, inode->i_ino, fi->i_xattr_nid);
-		return false;
-	}
-
 	if (f2fs_sb_has_flexible_inline_xattr(sbi)
 			&& !f2fs_has_extra_attr(inode)) {
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
@@ -816,10 +809,8 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 		!is_inode_flag_set(inode, FI_DIRTY_INODE))
 		return 0;
 
-	if (!f2fs_is_checkpoint_ready(sbi)) {
-		f2fs_mark_inode_dirty_sync(inode, true);
+	if (!f2fs_is_checkpoint_ready(sbi))
 		return -ENOSPC;
-	}
 
 	/*
 	 * We need to balance fs here to prevent from producing dirty node pages
@@ -971,12 +962,8 @@ no_delete:
 	if (likely(!f2fs_cp_error(sbi) &&
 				!is_sbi_flag_set(sbi, SBI_CP_DISABLED)))
 		f2fs_bug_on(sbi, is_inode_flag_set(inode, FI_DIRTY_INODE));
-
-	/*
-	 * anyway, it needs to remove the inode from sbi->inode_list[DIRTY_META]
-	 * list to avoid UAF in f2fs_sync_inode_meta() during checkpoint.
-	 */
-	f2fs_inode_synced(inode);
+	else
+		f2fs_inode_synced(inode);
 
 	/* for the case f2fs_new_inode() was failed, .i_ino is zero, skip it */
 	if (inode->i_ino)

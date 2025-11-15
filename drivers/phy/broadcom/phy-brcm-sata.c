@@ -726,6 +726,7 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 	struct device_node *dn = dev->of_node, *child;
 	const struct of_device_id *of_id;
 	struct brcm_sata_phy *priv;
+	struct resource *res;
 	struct phy_provider *provider;
 	int ret, count = 0;
 
@@ -738,7 +739,8 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, priv);
 	priv->dev = dev;
 
-	priv->phy_base = devm_platform_ioremap_resource_byname(pdev, "phy");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
+	priv->phy_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(priv->phy_base))
 		return PTR_ERR(priv->phy_base);
 
@@ -749,7 +751,9 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 		priv->version = BRCM_SATA_PHY_STB_28NM;
 
 	if (priv->version == BRCM_SATA_PHY_IPROC_NS2) {
-		priv->ctrl_base = devm_platform_ioremap_resource_byname(pdev, "phy-ctrl");
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						   "phy-ctrl");
+		priv->ctrl_base = devm_ioremap_resource(dev, res);
 		if (IS_ERR(priv->ctrl_base))
 			return PTR_ERR(priv->ctrl_base);
 	}

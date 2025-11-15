@@ -119,8 +119,7 @@ int xhci_halt(struct xhci_hcd *xhci)
 	ret = xhci_handshake(&xhci->op_regs->status,
 			STS_HALT, STS_HALT, XHCI_MAX_HALT_USEC);
 	if (ret) {
-		if (!(xhci->xhc_state & XHCI_STATE_DYING))
-			xhci_warn(xhci, "Host halt failed, %d\n", ret);
+		xhci_warn(xhci, "Host halt failed, %d\n", ret);
 		return ret;
 	}
 	xhci->xhc_state |= XHCI_STATE_HALTED;
@@ -175,8 +174,7 @@ int xhci_reset(struct xhci_hcd *xhci, u64 timeout_us)
 	state = readl(&xhci->op_regs->status);
 
 	if (state == ~(u32)0) {
-		if (!(xhci->xhc_state & XHCI_STATE_DYING))
-			xhci_warn(xhci, "Host not accessible, reset failed.\n");
+		xhci_warn(xhci, "Host not accessible, reset failed.\n");
 		return -ENODEV;
 	}
 

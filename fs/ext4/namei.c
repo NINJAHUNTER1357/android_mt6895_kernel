@@ -1998,13 +1998,13 @@ static struct ext4_dir_entry_2 *do_split(handle_t *handle, struct inode *dir,
 	 * split it in half by count; each resulting block will have at least
 	 * half the space free.
 	 */
-	if (i >= 0)
+	if (i > 0)
 		split = count - move;
 	else
 		split = count/2;
 
 	hash2 = map[split].hash;
-	continued = split > 0 ? hash2 == map[split - 1].hash : 0;
+	continued = hash2 == map[split - 1].hash;
 	dxtrace(printk(KERN_INFO "Split block %lu at %x, %i/%i\n",
 			(unsigned long)dx_get_block(frame->at),
 					hash2, split, count-split));

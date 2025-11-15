@@ -167,7 +167,7 @@ struct bnxt_qplib_swqe {
 			};
 			u32		q_key;
 			u32		dst_qp;
-			u32		avid;
+			u16		avid;
 		} send;
 
 		/* Send Raw Ethernet and QP1 */
@@ -372,7 +372,7 @@ struct bnxt_qplib_cqe {
 	u16				cfa_meta;
 	u64				wr_id;
 	union {
-		u32			immdata;
+		__le32			immdata;
 		u32			invrkey;
 	};
 	u64				qp_handle;

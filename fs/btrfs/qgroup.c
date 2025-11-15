@@ -2061,7 +2061,8 @@ static int qgroup_trace_extent_swap(struct btrfs_trans_handle* trans,
 			src_path->nodes[cur_level] = eb;
 
 			btrfs_tree_read_lock(eb);
-			src_path->locks[cur_level] = BTRFS_READ_LOCK;
+			btrfs_set_lock_blocking_read(eb);
+			src_path->locks[cur_level] = BTRFS_READ_LOCK_BLOCKING;
 		}
 
 		src_path->slots[cur_level] = dst_path->slots[cur_level];
@@ -2201,7 +2202,8 @@ static int qgroup_trace_new_subtree_blocks(struct btrfs_trans_handle* trans,
 		dst_path->slots[cur_level] = 0;
 
 		btrfs_tree_read_lock(eb);
-		dst_path->locks[cur_level] = BTRFS_READ_LOCK;
+		btrfs_set_lock_blocking_read(eb);
+		dst_path->locks[cur_level] = BTRFS_READ_LOCK_BLOCKING;
 		need_cleanup = true;
 	}
 
@@ -2375,7 +2377,8 @@ walk_down:
 			path->slots[level] = 0;
 
 			btrfs_tree_read_lock(eb);
-			path->locks[level] = BTRFS_READ_LOCK;
+			btrfs_set_lock_blocking_read(eb);
+			path->locks[level] = BTRFS_READ_LOCK_BLOCKING;
 
 			ret = btrfs_qgroup_trace_extent(trans, child_bytenr,
 							fs_info->nodesize,
@@ -3704,7 +3707,7 @@ static int try_flush_qgroup(struct btrfs_root *root)
 		return 0;
 	}
 
-	ret = btrfs_start_delalloc_snapshot(root, true);
+	ret = btrfs_start_delalloc_snapshot(root);
 	if (ret < 0)
 		goto out;
 	btrfs_wait_ordered_extents(root, U64_MAX, 0, (u64)-1);

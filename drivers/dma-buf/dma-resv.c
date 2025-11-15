@@ -290,9 +290,8 @@ void dma_resv_add_shared_fence(struct dma_resv *obj, struct dma_fence *fence)
 
 replace:
 	RCU_INIT_POINTER(fobj->shared[i], fence);
-	/* fence update must be visible before we extend the shared_count */
-	smp_wmb();
-	fobj->shared_count = count;
+	/* pointer update must be visible before we extend the shared_count */
+	smp_store_mb(fobj->shared_count, count);
 
 	write_seqcount_end(&obj->seq);
 	dma_fence_put(old);
@@ -592,7 +591,7 @@ retry:
 			goto retry;
 		}
 
-		ret = dma_fence_wait_timeout(fence, intr, timeout);
+		ret = dma_fence_wait_timeout(fence, intr, ret);
 		dma_fence_put(fence);
 		if (ret > 0 && wait_all && (i + 1 < shared_count))
 			goto retry;

@@ -1030,7 +1030,7 @@ static noinline int btrfs_mksnapshot(const struct path *parent,
 	 */
 	btrfs_drew_read_lock(&root->snapshot_lock);
 
-	ret = btrfs_start_delalloc_snapshot(root, false);
+	ret = btrfs_start_delalloc_snapshot(root);
 	if (ret)
 		goto out;
 

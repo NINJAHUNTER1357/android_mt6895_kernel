@@ -726,7 +726,7 @@ xfrm_dev_state_flush_secctx_check(struct net *net, struct net_device *dev, bool 
 
 	for (i = 0; i <= net->xfrm.state_hmask; i++) {
 		struct xfrm_state *x;
-		struct xfrm_dev_offload *xso;
+		struct xfrm_state_offload *xso;
 
 		hlist_for_each_entry(x, net->xfrm.state_bydst+i, bydst) {
 			xso = &x->xso;
@@ -810,7 +810,7 @@ int xfrm_dev_state_flush(struct net *net, struct net_device *dev, bool task_vali
 	err = -ESRCH;
 	for (i = 0; i <= net->xfrm.state_hmask; i++) {
 		struct xfrm_state *x;
-		struct xfrm_dev_offload *xso;
+		struct xfrm_state_offload *xso;
 restart:
 		hlist_for_each_entry(x, net->xfrm.state_bydst+i, bydst) {
 			xso = &x->xso;
@@ -1248,9 +1248,6 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 	unsigned int h;
 
 	list_add(&x->km.all, &net->xfrm.state_all);
-
-	/* Sanitize mark before store */
-	x->mark.v &= x->mark.m;
 
 	h = xfrm_dst_hash(net, &x->id.daddr, &x->props.saddr,
 			  x->props.reqid, x->props.family);

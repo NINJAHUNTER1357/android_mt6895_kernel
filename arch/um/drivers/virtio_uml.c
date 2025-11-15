@@ -1129,12 +1129,10 @@ static int virtio_uml_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, vu_dev);
 
 	rc = register_virtio_device(&vu_dev->vdev);
-	if (rc) {
+	if (rc)
 		put_device(&vu_dev->vdev.dev);
-		return rc;
-	}
 	vu_dev->registered = 1;
-	return 0;
+	return rc;
 
 error_init:
 	os_close_file(vu_dev->sock);

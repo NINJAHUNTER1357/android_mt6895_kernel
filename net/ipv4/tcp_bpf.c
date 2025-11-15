@@ -111,7 +111,7 @@ static int bpf_tcp_ingress(struct sock *sk, struct sk_psock *psock,
 		sge = sk_msg_elem(msg, i);
 		size = (apply && apply_bytes < sge->length) ?
 			apply_bytes : sge->length;
-		if (!__sk_rmem_schedule(sk, size, false)) {
+		if (!sk_wmem_schedule(sk, size)) {
 			if (!copied)
 				ret = -ENOMEM;
 			break;
@@ -232,8 +232,8 @@ int tcp_bpf_sendmsg_redir(struct sock *sk, struct sk_msg *msg,
 }
 EXPORT_SYMBOL_GPL(tcp_bpf_sendmsg_redir);
 
-#ifdef CONFIG_BPF_SYSCALL
-static bool tcp_bpf_sock_is_readable(struct sock *sk)
+#ifdef CONFIG_BPF_STREAM_PARSER
+static bool tcp_bpf_stream_read(const struct sock *sk)
 {
 	struct sk_psock *psock;
 	bool empty = true;
@@ -341,11 +341,8 @@ more_data:
 		if (!psock->cork) {
 			psock->cork = kzalloc(sizeof(*psock->cork),
 					      GFP_ATOMIC | __GFP_NOWARN);
-			if (!psock->cork) {
-				sk_msg_free(sk, msg);
-				*copied = 0;
+			if (!psock->cork)
 				return -ENOMEM;
-			}
 		}
 		memcpy(psock->cork, msg, sizeof(*msg));
 		return 0;
@@ -378,6 +375,7 @@ more_data:
 			cork = true;
 			psock->cork = NULL;
 		}
+		sk_msg_return(sk, msg, tosend);
 		release_sock(sk);
 
 		origsize = msg->sg.size;
@@ -388,9 +386,8 @@ more_data:
 			sock_put(sk_redir);
 
 		lock_sock(sk);
-		sk_mem_uncharge(sk, sent);
 		if (unlikely(ret < 0)) {
-			int free = sk_msg_free(sk, msg);
+			int free = sk_msg_free_nocharge(sk, msg);
 
 			if (!cork)
 				*copied -= free;
@@ -404,7 +401,7 @@ more_data:
 		break;
 	case __SK_DROP:
 	default:
-		sk_msg_free(sk, msg);
+		sk_msg_free_partial(sk, msg, tosend);
 		sk_msg_apply_bytes(psock, tosend);
 		*copied -= (tosend + delta);
 		return -EACCES;
@@ -420,8 +417,11 @@ more_data:
 		}
 		if (msg &&
 		    msg->sg.data[msg->sg.start].page_link &&
-		    msg->sg.data[msg->sg.start].length)
+		    msg->sg.data[msg->sg.start].length) {
+			if (eval == __SK_REDIRECT)
+				sk_mem_charge(sk, tosend - sent);
 			goto more_data;
+		}
 	}
 	return ret;
 }
@@ -585,7 +585,7 @@ static void tcp_bpf_rebuild_protos(struct proto prot[TCP_BPF_NUM_CFGS],
 	prot[TCP_BPF_BASE].destroy		= sock_map_destroy;
 	prot[TCP_BPF_BASE].close		= sock_map_close;
 	prot[TCP_BPF_BASE].recvmsg		= tcp_bpf_recvmsg;
-	prot[TCP_BPF_BASE].sock_is_readable	= tcp_bpf_sock_is_readable;
+	prot[TCP_BPF_BASE].stream_memory_read	= tcp_bpf_stream_read;
 
 	prot[TCP_BPF_TX]			= prot[TCP_BPF_BASE];
 	prot[TCP_BPF_TX].sendmsg		= tcp_bpf_sendmsg;
@@ -649,4 +649,4 @@ void tcp_bpf_clone(const struct sock *sk, struct sock *newsk)
 	if (is_insidevar(prot, tcp_bpf_prots))
 		newsk->sk_prot = sk->sk_prot_creator;
 }
-#endif /* CONFIG_BPF_SYSCALL */
+#endif /* CONFIG_BPF_STREAM_PARSER */

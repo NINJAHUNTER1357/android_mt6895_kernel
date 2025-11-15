@@ -946,7 +946,7 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 		if (geneve->cfg.df == GENEVE_DF_SET) {
 			df = htons(IP_DF);
 		} else if (geneve->cfg.df == GENEVE_DF_INHERIT) {
-			struct ethhdr *eth = skb_eth_hdr(skb);
+			struct ethhdr *eth = eth_hdr(skb);
 
 			if (ntohs(eth->h_proto) == ETH_P_IPV6) {
 				df = htons(IP_DF);
@@ -1237,7 +1237,6 @@ static void geneve_setup(struct net_device *dev)
 }
 
 static const struct nla_policy geneve_policy[IFLA_GENEVE_MAX + 1] = {
-	[IFLA_GENEVE_UNSPEC]		= { .strict_start_type = IFLA_GENEVE_INNER_PROTO_INHERIT },
 	[IFLA_GENEVE_ID]		= { .type = NLA_U32 },
 	[IFLA_GENEVE_REMOTE]		= { .len = sizeof_field(struct iphdr, daddr) },
 	[IFLA_GENEVE_REMOTE6]		= { .len = sizeof(struct in6_addr) },
@@ -1251,7 +1250,6 @@ static const struct nla_policy geneve_policy[IFLA_GENEVE_MAX + 1] = {
 	[IFLA_GENEVE_UDP_ZERO_CSUM6_RX]	= { .type = NLA_U8 },
 	[IFLA_GENEVE_TTL_INHERIT]	= { .type = NLA_U8 },
 	[IFLA_GENEVE_DF]		= { .type = NLA_U8 },
-	[IFLA_GENEVE_INNER_PROTO_INHERIT]	= { .type = NLA_FLAG },
 };
 
 static int geneve_validate(struct nlattr *tb[], struct nlattr *data[],
@@ -1741,7 +1739,6 @@ static size_t geneve_get_size(const struct net_device *dev)
 		nla_total_size(sizeof(__u8)) + /* IFLA_GENEVE_UDP_ZERO_CSUM6_TX */
 		nla_total_size(sizeof(__u8)) + /* IFLA_GENEVE_UDP_ZERO_CSUM6_RX */
 		nla_total_size(sizeof(__u8)) + /* IFLA_GENEVE_TTL_INHERIT */
-		nla_total_size(0) +	 /* IFLA_GENEVE_INNER_PROTO_INHERIT */
 		0;
 }
 
@@ -1903,9 +1900,21 @@ static void geneve_destroy_tunnels(struct net *net, struct list_head *head)
 {
 	struct geneve_net *gn = net_generic(net, geneve_net_id);
 	struct geneve_dev *geneve, *next;
+	struct net_device *dev, *aux;
 
-	list_for_each_entry_safe(geneve, next, &gn->geneve_list, next)
-		geneve_dellink(geneve->dev, head);
+	/* gather any geneve devices that were moved into this ns */
+	for_each_netdev_safe(net, dev, aux)
+		if (dev->rtnl_link_ops == &geneve_link_ops)
+			unregister_netdevice_queue(dev, head);
+
+	/* now gather any other geneve devices that were created in this ns */
+	list_for_each_entry_safe(geneve, next, &gn->geneve_list, next) {
+		/* If geneve->dev is in the same netns, it was already added
+		 * to the list by the previous loop.
+		 */
+		if (!net_eq(dev_net(geneve->dev), net))
+			unregister_netdevice_queue(geneve->dev, head);
+	}
 }
 
 static void __net_exit geneve_exit_batch_net(struct list_head *net_list)

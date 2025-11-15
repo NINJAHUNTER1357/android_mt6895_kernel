@@ -61,8 +61,6 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 			pcm_formats |= SNDRV_PCM_FMTBIT_SPECIAL;
 			/* flag potentially raw DSD capable altsettings */
 			fp->dsd_raw = true;
-			/* clear special format bit to avoid "unsupported format" msg below */
-			format &= ~UAC2_FORMAT_TYPE_I_RAW_DATA;
 		}
 
 		format <<= 1;
@@ -74,11 +72,8 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 		sample_width = as->bBitResolution;
 		sample_bytes = as->bSubslotSize;
 
-		if (format & UAC3_FORMAT_TYPE_I_RAW_DATA) {
+		if (format & UAC3_FORMAT_TYPE_I_RAW_DATA)
 			pcm_formats |= SNDRV_PCM_FMTBIT_SPECIAL;
-			/* clear special format bit to avoid "unsupported format" msg below */
-			format &= ~UAC3_FORMAT_TYPE_I_RAW_DATA;
-		}
 
 		format <<= 1;
 		break;
@@ -251,8 +246,7 @@ static int parse_audio_format_rates_v1(struct snd_usb_audio *chip, struct audiof
 	}
 
 	/* Jabra Evolve 65 headset */
-	if (chip->usb_id == USB_ID(0x0b0e, 0x030b) ||
-	    chip->usb_id == USB_ID(0x0b0e, 0x030c)) {
+	if (chip->usb_id == USB_ID(0x0b0e, 0x030b)) {
 		/* only 48kHz for playback while keeping 16kHz for capture */
 		if (fp->nr_rates != 1)
 			return set_fixed_rate(fp, 48000, SNDRV_PCM_RATE_48000);

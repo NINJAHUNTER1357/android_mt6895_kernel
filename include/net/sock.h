@@ -853,8 +853,6 @@ static inline void sk_add_bind_node(struct sock *sk,
 	hlist_for_each_entry_safe(__sk, tmp, list, sk_node)
 #define sk_for_each_bound(__sk, list) \
 	hlist_for_each_entry(__sk, list, sk_bind_node)
-#define sk_for_each_bound_safe(__sk, tmp, list) \
-	hlist_for_each_entry_safe(__sk, tmp, list, sk_bind_node)
 
 /**
  * sk_for_each_entry_offset_rcu - iterate over a list at a given struct offset
@@ -1241,7 +1239,7 @@ struct proto {
 #endif
 
 	bool			(*stream_memory_free)(const struct sock *sk, int wake);
-	bool			(*sock_is_readable)(struct sock *sk);
+	bool			(*stream_memory_read)(const struct sock *sk);
 	/* Memory pressure */
 	void			(*enter_memory_pressure)(struct sock *sk);
 	void			(*leave_memory_pressure)(struct sock *sk);
@@ -1540,7 +1538,7 @@ static inline bool sk_wmem_schedule(struct sock *sk, int size)
 }
 
 static inline bool
-__sk_rmem_schedule(struct sock *sk, int size, bool pfmemalloc)
+sk_rmem_schedule(struct sock *sk, struct sk_buff *skb, int size)
 {
 	int delta;
 
@@ -1548,13 +1546,7 @@ __sk_rmem_schedule(struct sock *sk, int size, bool pfmemalloc)
 		return true;
 	delta = size - sk->sk_forward_alloc;
 	return delta <= 0 || __sk_mem_schedule(sk, delta, SK_MEM_RECV) ||
-	       pfmemalloc;
-}
-
-static inline bool
-sk_rmem_schedule(struct sock *sk, struct sk_buff *skb, int size)
-{
-	return __sk_rmem_schedule(sk, size, skb_pfmemalloc(skb));
+		skb_pfmemalloc(skb);
 }
 
 static inline void sk_mem_reclaim(struct sock *sk)
@@ -2848,13 +2840,4 @@ void sock_set_sndtimeo(struct sock *sk, s64 secs);
 
 int sock_bind_add(struct sock *sk, struct sockaddr *addr, int addr_len);
 
-static inline bool sk_is_readable(struct sock *sk)
-{
-	const struct proto *prot = READ_ONCE(sk->sk_prot);
-
-	if (prot->sock_is_readable)
-		return prot->sock_is_readable(sk);
-
-	return false;
-}
 #endif	/* _SOCK_H */
